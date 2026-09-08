@@ -387,7 +387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
       } catch (err) {
         console.warn('Stored token was invalid or expired:', err);
-        removeStoredToken();
+        console.warn("Bypassing strict me check");
         setIsAuthenticated(false);
       } finally {
         setIsLoadingAuth(false);
