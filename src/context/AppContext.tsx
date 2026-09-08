@@ -323,20 +323,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (data?.session) {
         setStoredToken(data.session.access_token);
         setIsAuthenticated(true);
-        addToast({
-          type: 'success',
-          title: 'مرحباً بك!',
-          description: 'تم تسجيل الدخول بنجاح',
-        });
+        if (typeof addToast === 'function') {
+          addToast({
+            type: 'success',
+            title: 'مرحباً بك!',
+            description: 'تم تسجيل الدخول بنجاح',
+          });
+        }
         return true;
       }
       return false;
     } catch (err: any) {
-      addToast({
-        type: 'error',
-        title: 'خطأ في تسجيل الدخول',
-        description: err.message || 'فشل تسجيل الدخول',
-      });
+      if (typeof addToast === 'function') {
+        addToast({
+          type: 'error',
+          title: 'خطأ في تسجيل الدخول',
+          description: err.message || 'فشل تسجيل الدخول',
+        });
+      }
       return false;
     }
   };
