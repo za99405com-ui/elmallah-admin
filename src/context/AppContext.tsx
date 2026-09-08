@@ -170,232 +170,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('almallah_dark_mode', String(darkMode));
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode((prev) => !prev);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const toggleSound = () => setSoundEnabled((prev) => !prev);
-
-  // 4. Phone Notifications
-  const [phoneNotificationsEnabled, setPhoneNotificationsEnabled] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('almallah_phone_notifications') === 'true';
-    }
-    return false;
-  });
-
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      return Notification.permission;
-    }
-    return 'default';
-  });
-
-  // 5. Toasts
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const addToast = useCallback((toast: Omit<ToastMessage, 'id' | 'timestamp'>) => {
-    const newToast: ToastMessage = {
-      ...toast,
-      id: 'toast-' + Math.random().toString(36).substring(2, 9),
-      timestamp: Date.now(),
-    };
-    setToasts((prev) => [newToast, ...prev].slice(0, 6));
-
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== newToast.id));
-    }, 4500);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  // Audio chime
-  const playAlertSound = useCallback(() => {
-    if (!soundEnabled || typeof window === 'undefined') return;
-    try {
-      const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.35);
-    } catch {
-      // Ignore
-    }
-  }, [soundEnabled]);
-
-  const sendPhoneNotification = useCallback(
-    (title: string, body: string, tag?: string) => {
-      playAlertSound();
-
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        try {
-          navigator.vibrate([200, 100, 200, 100, 300]);
-        } catch {
-          // Ignore
-        }
-      }
-
-      if (
-        phoneNotificationsEnabled &&
-        typeof window !== 'undefined' &&
-        'Notification' in window &&
-        Notification.permission === 'granted'
-      ) {
-        try {
-          new Notification(title, {
-            body,
-            icon: '/favicon.ico',
-            tag: tag || 'order-' + Date.now(),
-          });
-        } catch (e) {
-          console.warn('Notification error:', e);
-        }
-      }
-    },
-    [phoneNotificationsEnabled, playAlertSound]
-  );
-
-  const requestPhoneNotificationPermission = async (): Promise<boolean> => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      addToast({
-        type: 'warning',
-        title: 'المتصفح لا يدعم إشعارات النظام المباشرة',
-        description: 'يمكنك الاعتماد على التنبيه الصوتي داخل المتصفح',
-      });
-      return false;
-    }
-
-    try {
-      const perm = await Notification.requestPermission();
-      setNotificationPermission(perm);
-      if (perm === 'granted') {
-        setPhoneNotificationsEnabled(true);
-        localStorage.setItem('almallah_phone_notifications', 'true');
-        sendPhoneNotification('🔔 تم تفعيل إشعارات الهاتف بنجاح!', 'ستصلك الآن تنبيهات الطلبات وتأكيد العربون فوراً.');
-        addToast({
-          type: 'success',
-          title: 'تم تفعيل إشعارات الهاتف بنجاح',
-          description: 'ستصلك الآن تنبيهات الاهتزاز والإشعارات الفورية عند وصول أي طلب جديد أو عربون.',
-        });
-        return true;
-      } else {
-        setPhoneNotificationsEnabled(false);
-        localStorage.setItem('almallah_phone_notifications', 'false');
-        addToast({
-          type: 'warning',
-          title: 'تم رفض إذن الإشعارات',
-          description: 'يرجى السماح بالإشعارات من إعدادات المتصفح على هاتفك.',
-        });
-        return false;
-      }
-    } catch (err) {
-      console.error('Error requesting notification permission:', err);
-      return false;
-    }
-  };
-
-  const togglePhoneNotifications = async () => {
-    if (!phoneNotificationsEnabled) {
-      await requestPhoneNotificationPermission();
-    } else {
-      setPhoneNotificationsEnabled(false);
-      localStorage.setItem('almallah_phone_notifications', 'false');
-      addToast({
-        type: 'info',
-        title: 'تم إيقاف إشعارات الهاتف',
-        description: 'لن تتلقى إشعارات على هاتفك حتى تقوم بإعادة تفعيلها.',
-      });
-    }
-  };
-
-  // 6. Data Entities State
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(false);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(false);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
-
-  // 7. Data Loader Function
-  const refreshData = useCallback(async () => {
     const token = getStoredToken();
-    if (!token) return;
-
-    try {
-      setIsLoadingProducts(true);
-      setIsLoadingOrders(true);
-
-      const [catsRes, prodsRes, ordersRes, custsRes, coupsRes, settingsRes] = await Promise.allSettled([
-        api.getCategories(),
-        api.getProducts(),
-        api.getOrders(),
-        api.getCustomers(),
-        api.getCoupons(),
-        api.getSettings(),
-      ]);
-
-      if (catsRes.status === 'fulfilled') setCategories(catsRes.value);
-      if (prodsRes.status === 'fulfilled') setProducts(prodsRes.value);
-      if (ordersRes.status === 'fulfilled') setOrders(ordersRes.value);
-      if (custsRes.status === 'fulfilled') setCustomers(custsRes.value);
-      if (coupsRes.status === 'fulfilled') setCoupons(coupsRes.value);
-      if (settingsRes.status === 'fulfilled') setSettings(settingsRes.value);
-    } catch (err) {
-      console.error('Error refreshing admin data:', err);
-    } finally {
-      setIsLoadingProducts(false);
-      setIsLoadingOrders(false);
+    if (token) {
+      setIsAuthenticated(true);
     }
+    setIsLoadingAuth(false);
   }, []);
-
-  // 8. Session Initialization
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = getStoredToken();
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoadingAuth(false);
-        return;
-      }
-
-      try {
-        const meRes = await api.getMe();
-        if (meRes?.admin) {
-          setAdminUser(meRes.admin);
-          setAuthCredentials({ email: meRes.admin.email });
-          setIsAuthenticated(true);
-          await refreshData();
-        }
-      } catch (err) {
-        console.warn('Stored token was invalid or expired:', err);
-        console.warn("Bypassing strict me check");
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoadingAuth(false);
-      }
-    };
-
-    initAuth();
-  }, [refreshData]);
 
   // Handle unauthorized event
   useEffect(() => {
@@ -529,26 +309,33 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // 10. Authentication Handlers
   const login = async (email: string, pass: string): Promise<boolean> => {
     try {
-      const res = await api.login(email, pass);
-      if (res?.token && res?.admin) {
-        setAdminUser(res.admin);
-        setAuthCredentials({ email: res.admin.email });
+      const { getSupabaseClient } = await import('../lib/supabase');
+      const supabase = getSupabaseClient();
+      if (!supabase) throw new Error('Supabase Client Not Initialized');
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: pass,
+      });
+
+      if (error) throw error;
+
+      if (data?.session) {
+        setStoredToken(data.session.access_token);
         setIsAuthenticated(true);
         addToast({
           type: 'success',
-          title: `مرحباً بك يا ${res.admin.name}!`,
-          description: 'تم تسجيل الدخول بنجاح عبر خادم الإدارة المشفر',
+          title: 'مرحباً بك!',
+          description: 'تم تسجيل الدخول بنجاح',
         });
-        await refreshData();
         return true;
       }
       return false;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'فشل تسجيل الدخول';
+    } catch (err: any) {
       addToast({
         type: 'error',
         title: 'خطأ في تسجيل الدخول',
-        description: msg,
+        description: err.message || 'فشل تسجيل الدخول',
       });
       return false;
     }
