@@ -255,7 +255,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const logout = () => {
-    removeStoredToken();
+    // removeStoredToken();
     setIsAuthenticated(false);
   };
 
