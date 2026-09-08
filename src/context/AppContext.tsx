@@ -255,8 +255,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const logout = () => {
-    // // removeStoredToken();
-    // setIsAuthenticated(false);
+    // // console.log("token preserved");
+    // console.log("auth preserved");
   };
 
   const updateCredentials = async () => ({ success: true, message: 'Updated' });
