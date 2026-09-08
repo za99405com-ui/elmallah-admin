@@ -32,8 +32,7 @@ export const LoginScreen: React.FC = () => {
           setErrorMsg(error.message);
         }
       } else if (data?.session) {
-        localStorage.setItem('elmallah_admin_auth_token', data.session.access_token);
-        window.location.reload();
+        window.location.href = '/';
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'حدث خطأ غير متوقع أثناء تسجيل الدخول.');
